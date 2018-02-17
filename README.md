@@ -133,3 +133,52 @@ docker run --rm --pid host -ti tehbilly/htop
 ```
 В первом случае ведем мониторинг процессов внутри docker контейнера<br>
 Во втором - мониторинг на хосте docker контейнера
+
+
+## ДЗ-16 "Docker-образа. Микросервисы"
+
+### Приложение разбито на несколько компонент
+Прошлые наработки вынесены в директорию docker-monolith.<br><br>
+В директории reddit-microservices размещено новое приложение (компоненты приложения).<br>
+Компоненты:
+- post-py - сервис, отвечающий за написание постов;
+- comment - сервис, отвечающий за написание комментариев;
+- ui - веб-интерфейс, работающий с другими сервисами.
+
+### Сконфигурированы файлы ```Dockerfile``` каждого компонента приложения
+
+### Собрано приложение
+Установлен последний образ ```mongodb```
+```
+docker pull mongo:latest
+```
+Собраны образа сервисов (компонентов приложения):
+```
+docker build -t <dockerhub-login>/post:1.0 ./post-py
+docker build -t <dockerhub-login>/comment:1.0 ./comment
+docker build -t <dockerhub-login>/ui:1.0 ./ui
+```
+
+### Проверена работа приложения
+Создана сеть для приложения
+```
+docker network create reddit
+```
+
+Запущены контейнеры
+```
+docker run -d --network=reddit --network-alias=post_db --network-alias=comment_db mongo:latest
+docker run -d --network=reddit --network-alias=post <dockerhub-login>/post:1.0
+docker run -d --network=reddit --network-alias=comment <dockerhub-login>/comment:1.0
+docker run -d --network=reddit -p 9292:9292 <dockerhub-login>/ui:1.0
+```
+
+### Создан ```volume``` для ```mongodb```
+Перезапущено приложение (контейнеры), для ```mongo``` указан созданный ```volume```
+```
+docker kill $(docker ps -q)
+docker run -d --network=reddit —network-alias=post_db \
+ --network-alias=comment_db -v reddit_db:/data/db mongo:latest
+docker run ...
+```
+После перезапуска приложения добавленные ранее посты остаются.
