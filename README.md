@@ -50,3 +50,86 @@ docker rm <u_container_id> [-f]
 docker rmi <u_image_id>
   docker rmi $(docker images -q)
 ```
+
+
+## ДЗ-14 "Docker-контейнеры"
+
+### Установлен компонент ```docker-machine```
+```
+curl -L https://github.com/docker/machine/releases/download/v0.13.0/docker-machine-`uname -s`-`uname -m` >/tmp/docker-machine && \
+sudo install /tmp/docker-machine /usr/local/bin/docker-machine
+```
+
+### Сконфигурирован ```google-cloud```
+Создан новый проект в ```GCE```<br>
+Инициализирован ```google-cloud```
+```
+gcloud init
+```
+
+### Создан хост ```docker-host```
+```
+docker-machine create --driver google \
+  --google-project <project_id> \
+  --google-zone europe-west1-b \
+  --google-machine-type g1-small \
+  --google-machine-image $(gcloud compute images list --filter ubuntu-1604-lts --uri) \
+  docker-host
+```
+Проверка успешности создания хоста
+```
+docker-machine ls
+```
+
+### Созданы файлы конфигурации, запуска образа с приложением
+- Dockerfile - описание образа
+- db_config - конфиг для mongodb
+- mongod.conf - переменная со ссылкой mongodb
+- start.sh - скрипт запуска приложения
+
+
+### Созбран образ
+```
+docker build -t reddit:latest .
+```
+Проверка результата
+```
+docker images -a
+```
+
+### Запущен контейнер
+```
+docker run --name reddit -d --network=host reddit:latest
+```
+Проверка результата
+```
+docker-machine ls
+```
+
+### Создано правило firefall, разрешающее входящий трафик на порт 9292
+```
+gcloud compute firewall-rules create reddit-app \
+  --allow tcp:9292 \
+  --priority=65534 \
+  --target-tags=docker-machine \
+  --description="Allow TCP connections" \
+  --direction=INGRESS
+```
+
+### Создана учетка, залит образ в репозиторий ```Docker hub```
+```
+docker tag reddit:latest <login-on-docker-hub>/otus-reddit:1.0
+```
+```
+docker push <login-on-docker-hub>/otus-reddit:1.0
+```
+
+### * Namespaces
+```
+docker run --rm -ti tehbilly/htop
+```
+```
+docker run --rm --pid host -ti tehbilly/htop
+```
+В первом случае ведем мониторинг процессов внутри docker контейнера<br>
+Во втором - мониторинг на хосте docker контейнера
