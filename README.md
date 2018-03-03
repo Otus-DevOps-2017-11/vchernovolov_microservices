@@ -183,62 +183,68 @@ docker run ...
 ```
 После перезапуска приложения добавленные ранее посты остаются.
 
-## ДЗ-17 "Docker: сети, docker-compose"
 
-### Запущены контейнеры с использованием различных ```network```-драйверов
+## ДЗ-19 "Gitlab CI. Построение процесса непрерывной интеграции"
 
-* Драйвер ```none```
+### Создана виртуальная машина в Google Cloud, установлен docker
+В ```Google Cloud``` создана виртуальная машина gitlab-ci<br>
+На данной машине установлен ```docker```, ```docker-compose```.
 ```
-docker run --network none --rm -d --name net_test joffotron/docker-net-tools -c "sleep 100"
-```
-* Драйвер ```host```
-```
-docker run --network host --rm -d --name net_test joffotron/docker-net-tools -c "sleep 100"
-```
-
-* Драйвер ```bridge```<br>
-Создана сеть
-```
-docker network create reddit --driver bridge
-```
-Запущены контейнеры
-```
-docker run -d --network=reddit --network-alias=post_db --network-alias=comment_db mongo:latest
-docker run -d --network=reddit --network-alias=post <user-login>/post:1.0
-docker run -d --network=reddit --network-alias=comment <user-login>/comment:1.0
-docker run -d --network=reddit -p 9292:9292 <user-login>/ui:2.0
-```
-Созданы сети ```front_net```, ```back_net```
-```
-docker network create back_net --subnet=10.0.2.0/24
-docker network create front_net --subnet=10.0.1.0/24
-```
-Запущены контейнеры в разделенных сетях ```front_net```, ```back_net```
-```
-docker run -d --network=front_net -p 9292:9292 --name ui  <user-login>/ui:2.0
-docker run -d --network=back_net --name comment <user-login>/comment:1.0
-docker run -d --network=back_net --name post <user-login>/post:1.0
-docker run -d --network=back_net --name mongo_db --network-alias=post_db --network-alias=comment_db mongo:latest
-```
-Подключены контейнеры ко второй сети
-```
-docker network connect front_net post
-docker network connect front_net comment
+# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+# add-apt-repository "deb https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+# apt-get update
+# apt-get install docker-ce docker-compose
 ```
 
-### Установлен ```docker-compose```
+### На виртуальной машине установлен ```Gitlab```
+Модифицирован файл ```docker-compose.yml```, для запуска ```Gitlab``` использована ```omnibus```-установка<br>
+Поднят ```Gitlab```
 
-### Реализован файл ```docker-compose.yml```
-Параметры ```docker-compose.yml``` определены посредством переменных окружения, заданных в файле ```.env```<br>
-Запуск контейнеров
 ```
 docker-compose up -d
 ```
-
-
-### Задание ```docker-compose *```
-
-Чтобы изменить имя проекта по-умолчанию, задаем в .env переменную
+Проверена работа ```Gitlab``` - переходя по адресу
 ```
-COMPOSE_PROJECT_NAME=project_name
+http://<gitlab-ci-vm-ip>
 ```
+отобразился интерфейс ```Gitlab```
+
+### Произведены настройки ```Gitlab```
+- Отключена регистрация новых пользователей
+- Создана группа проектов
+- Создан проект
+
+### Определен ```CD/CI Pipeline``` проекта
+В репозиторий добавлен файл ```.gitlab-ci.yml``` с определением этапов ```Pipeline```<br>
+Определены ```Jobs``` для этапов.
+
+### Настроен ```Runner```
+На витуальной машине gitlab-ci запущен, зарегистрирован ```Runner```
+```
+docker run -d --name gitlab-runner --restart always \
+  -v /srv/gitlab-runner/config:/etc/gitlab-runner \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  gitlab/gitlab-runner:latest 
+```
+```
+docker exec -it gitlab-runner gitlab-runner register
+```
+
+### Исходный код приложения ```Reddit``` добавлен в репозиторий
+```
+git clone https://github.com/express42/reddit.git && rm -rf ./reddit/.git
+git add reddit/
+git commit -m “Add reddit app”
+git push gitlab docker-6
+```
+
+### Тестирование приложения ```Reddit```
+В репозиторий добавлен файл ```simpletest.rb``` - вызов теста ```Reddit```<br>
+Файл ```.gitlab-ci.yml``` модифицирован (+ добавлен файл ```simpletest.rb``` на этапе ```test_unit_job```)<br>
+В файл ```reddit/Gemfile``` добавлена библиотека для тестирования
+```
+...
+gem 'rack-test'
+...
+```
+Проверена работа запуска, работы теста на каждое изменение в коде.
