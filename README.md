@@ -224,7 +224,7 @@ http://<gitlab-ci-vm-ip>
 docker run -d --name gitlab-runner --restart always \
   -v /srv/gitlab-runner/config:/etc/gitlab-runner \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  gitlab/gitlab-runner:latest 
+  gitlab/gitlab-runner:latest
 ```
 ```
 docker exec -it gitlab-runner gitlab-runner register
@@ -248,3 +248,78 @@ gem 'rack-test'
 ...
 ```
 Проверена работа запуска, работы теста на каждое изменение в коде.
+
+
+## ДЗ-20 "Устройство Gitlab CI. Непрерывная поставка"
+
+### Создан новый проект для расширения ```Pipeline```
+После запуска vm (остановлена с предыдущего ДЗ), скорректирован файл ```docker-compose.yml```, указан новый vm-ip, перезапущен контейнер ```gitlab/gitlab-ce```
+```
+  ...
+  GITLAB_OMNIBUS_CONFIG: |
+        external_url 'new-vm-ip'
+  ...
+```
+
+### Включен ранее зарегистрированный ```runner``` для нового проекта
+
+### Определены различные окружения CD/CI, условия/ограничения, динамические окружения
+В файле ```gitlab-ci.yml``` определены окружения Dev, Staging, Production<br>
+```
+stages:
+...
+  - stage
+  - production
+
+...
+deploy_dev_job:
+  stage: review
+  script:
+    - echo 'Deploy'
+  environment:
+    name: dev
+    url: http://dev.example.com
+
+...
+staging:
+  stage: stage
+  when: manual
+  script:
+    - echo 'Deploy'
+  environment:
+    name: stage
+    url: https://beta.example.com
+
+production:
+  stage: production
+  when: manual
+  script:
+    - echo 'Deploy'
+  environment:
+    name: production
+    url: https://example.com
+```
+Далее заданы ограничения для окружений Staging, Production - ```semver (Semantic Versioning)``` тег ```git```
+```
+...
+staging:
+  stage: stage
+  ...
+  only:
+    - /^\d+\.\d+.\d+/
+  ...
+```
+Изменения без указания тэга запустят ```Pipeline``` без job staging  и production<br>
+Определены динамические окружения для каждой feature-ветки (кроме ```master```)
+```
+branch review:
+  stage: review
+  script: echo "Deploy to $CI_ENVIRONMENT_SLUG"
+  environment:
+    name: branch/$CI_COMMIT_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.example.com
+  only:
+    - branches
+  except:
+    - master
+```
