@@ -406,3 +406,55 @@ docker push $USER_NAME/prometheus
 ```
 https://hub.docker.com/u/vchgacc1/
 ```
+
+## ДЗ-23 "Мониторинг приложения и инфраструктуры"
+
+### Создан Docker хост в GCE и настроено локальное окружение на работу с ним
+Создан хост, аналогично пред. ДЗ, собраны образы компонентов приложения `reddit`, `prometheus`
+
+### Разделены файлы `docker-compose`
+В файле `docker-compose.yml` оставлено только описание компонентов приложения `reddit`<br>
+Описание компонентов, относящихся к мониторингу, вынесено в файл `docker-compose-monitoring.yml`
+
+### Установлен `cAdvisor`
+Для мониторинга состояния контейнеров<br>
+Новый сервис добавлен в файл `docker-compose-monitoring.yml`<br>
+Добавлена инф. в `prometheus.yml` (для начала сбора метрик `Prometheus`)
+
+### Установлен инструмент `Grafana` для визуализации данных из `Prometheus`
+Новый сервис добавлен в файл `docker-compose-monitoring.yml`<br><br>
+Создан `data source` с типом - `Prometheus`<br><br>
+Импортирован дашбоард *DockerMonitoring* (источник - https://grafana.com/dashboards)<br><br>
+Добавлены дашбоарды:
+- *UI_Service_Monitoring*;
+- *Business_Logic_Monitoring*;
+
+### Добавлен `Alertmanager`
+Компонент для `Prometheus`, обрабатывающий алерты и отправляющий оповещения по заданному назначению<br><br>
+В качестве источника для отправки сообщений указан Slack-канал (`slack-notifications channel` - `Incoming Webhook`, созданный в рамках ДЗ)<br><br>
+Собран образ `alertmanager`
+```
+docker build -t $USER_NAME/alertmanager .
+```
+Новый сервис добавлен в файл `docker-compose-monitoring.yml`<br><br>
+Определено правило алерта (`alert.yml`)<br><br>
+Добавлена информация о правилах в конфиг `Prometheus`<br><br>
+Пересобран образ `Prometheus`
+```
+docker-build -t $USER_NAME/prometheus .
+```
+Проверена работа алерта - остановлен один из сервисов:
+```
+docker-compose stop post
+```
+Через некоторое время в канал для нотификаций алертинга пришло сообщение *InstanceDown* (недоступность сервиса)
+
+### Собранные образы запушены на `DockerHub`
+```
+docker login
+docker push $USER_NAME/ui
+docker push $USER_NAME/comment
+docker push $USER_NAME/post
+docker push $USER_NAME/prometheus
+docker push $USER_NAME/alertmanager
+```
