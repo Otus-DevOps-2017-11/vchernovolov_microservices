@@ -323,3 +323,86 @@ branch review:
   except:
     - master
 ```
+
+## ДЗ-21 "Введение в мониторинг. Системы мониторинга"
+
+### Установлен, запущен ```Prometheus```
+Созданы правила для ```Prometheus``` & ```Puma```
+
+```
+gcloud compute firewall-rules create prometheus-default --allow tcp:9090
+gcloud compute firewall-rules create puma-default --allow tcp:9292
+```
+
+Создан ```Docker``` хост в ```GCE``` и настроено локальное окружение для работы с ним
+```
+export GOOGLE_PROJECT=your_project
+
+docker-machine create --driver google \
+  --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts \
+  --google-machine-type n1-standard-1 vm1
+
+eval $(docker-machine env vm1)
+
+docker run --rm -p 9090:9090 -d --name prometheus prom/prometheus
+
+```
+
+### Произведена реорганизация структуры каталогов
+- перенесено содержимое каталога ```reddit-microservices``` в корень репозитория (каталог ```reddit-microservices``` удален);
+- в корне репозитория создан каталог ```src```, в него перенесены компоненты приложения ```reddit```: ```comment```, ```post-py```, ```ui```;
+- создан каталог ```docker``` в корне репозитория, в него перенесен каталог ```docker-monolith``` и файлы ```docker-compose``` и все ```.env```;
+- в корне репозитория создан каталог ```monitoring``` (там складываем все, относящееся к мониторингу);
+
+### Создан ```Docker``` образ ```Prometheus```, сконфигурирован ```Prometheus```
+```
+export USER_NAME=username
+docker build -t $USER_NAME/prometheus .
+```
+
+### Собраны образы компонентов приложения ```reddit```
+Запуск из корня репозитория:
+```
+for i in ui post-py comment; do cd src/$i;
+bash docker_build.sh; cd -; done
+```
+
+### В ```docker-compose.yml``` определен сервис - ```Prometheus```
+Подняты все сервисы, определенные в ```docker-compose.yml```
+```
+docker-compose up -d
+```
+
+### Проверена работа мониторинга состояния микросервисов
+Проверка индикаторов **\*health\*** <br>
+Остановлен сервис `post`
+```
+docker-compose stop post
+```
+Проверка значения индикартора **ui_health_post_availability** - получили значение 0
+Запущен сервис `post`
+```
+docker-compose start post
+```
+После запуска - значение индикатора **ui_health_post_availability** = 1
+
+### Настроен сбор метрик хоста с помощью `Node exporter`
+- в `docker/docker-compose.yml` добавлен сервис - `node-exporter`;
+- в `monitoring/prometheus/prometheus.yml` добавлен еще один job - `'node'`
+- перезапущены сервисы:
+```
+docker-compose down
+docker-compose up -d
+```
+
+### Собранные образы запушены на `dockerhub`
+```
+docker push $USER_NAME/ui
+docker push $USER_NAME/comment
+docker push $USER_NAME/post
+docker push $USER_NAME/prometheus
+```
+Ссылка на ```dockerhub``` образы:
+```
+https://hub.docker.com/u/vchgacc1/
+```
