@@ -1,5 +1,5 @@
 global:
-  slack_api_url: 'https://hooks.slack.com/services/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'
+  slack_api_url: 'https://hooks.slack.com/services/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'
 
 route:
   receiver: 'slack-notifications'
@@ -7,4 +7,4 @@ route:
 receivers:
 - name: 'slack-notifications'
   slack_configs:
-  - channel: '#vchernovolov_achannel'
+  - channel: '#vchernovolov_alerts'
