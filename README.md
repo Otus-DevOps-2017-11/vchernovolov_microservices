@@ -458,3 +458,40 @@ docker push $USER_NAME/post
 docker push $USER_NAME/prometheus
 docker push $USER_NAME/alertmanager
 ```
+
+## ДЗ-25 "Логирование и распределенная трассировка"
+
+### Обновлен код приложения `reddit`
+Обновлен код приложения `reddit` (https://github.com/express42/reddit/tree/logging)<br>
+Собраны образы компонентов приложения<br>
+Запуск из корня репозитория:
+```
+for i in ui post-py comment; do cd src/$i;
+bash docker_build.sh; cd -; done
+```
+Запушены опразы на DockerHub<br>
+
+### Создан Docker хост в GCE и настроено локальное окружение на работу с ним
+```
+export GOOGLE_PROJECT=google_project_id
+
+docker-machine create --driver google \
+  --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts \
+  --google-machine-type n1-standard-1 \
+  --google-open-port 5601/tcp \
+  --google-open-port 9292/tcp \
+  --google-open-port 9411/tcp \
+  logging
+
+eval $(docker-machine env logging)
+
+```
+
+### Создан отдельный compose-файл для системы логирования
+Настроены сервисы `fluentd`, `elasticsearch`, `kibana`<br>
+Оказалось, для работы сервиса post, нужно сразу включить в файл сервис `zipkin`..<br>
+Конфигурация `fluentd` определена в файле `fluent.conf`
+
+### Определен драйвер логирования `fluentd` для сервисов `post`, `ui`
+
+### Заданы фильтры парсинга логов (конфиг `fluentd`)
