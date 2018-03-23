@@ -495,3 +495,96 @@ eval $(docker-machine env logging)
 ### Определен драйвер логирования `fluentd` для сервисов `post`, `ui`
 
 ### Заданы фильтры парсинга логов (конфиг `fluentd`)
+
+
+## ДЗ-27 "Docker Swarm"
+
+### Сформирован кластер Docker Swarm
+Созданы Docker хосты в GCE:
+- master-1 (менеджер кластера);
+- worker-1, worker-2 (затем worker-3 - worker-ноды)
+
+```
+docker-machine create --driver google \
+   --google-project  <google_project_id>  \
+   --google-zone europe-west1-b \
+   --google-machine-type g1-small \
+   --google-machine-image $(gcloud compute images list --filter ubuntu-1604-lts --uri) \
+   <node-name>
+```
+
+Инициализирован кластер
+```
+docker swarm init
+```
+
+Добавлены worker-ноды к кластеру
+```
+docker swarm join --token <token> <manager-advertise-address>:2377
+```
+
+Развернут стек сервисов:
+```
+docker stack deploy --compose-file=<(docker-compose -f docker-compose.yml config 2>/dev/null) DEV
+```
+
+### Сконфигурированы сервисы для Docker Swarm
+Размещены сервисы по нодам<br>
+Ноде master-1 назначена reliability=high
+```
+docker node update --label-add reliability=high master-1
+```
+Сервис `mongo` разместили на `master-1`, в `docker-compose.yml` для сервиса определено:
+```
+  ...
+  deploy:
+    placement:
+      constraints:
+        - node.labels.reliability == high
+  ...
+```
+
+Сервисы `ui`, `post`, `commit` размещены на worker-нодах
+```
+  ...
+  deploy:
+    placement:
+      constraints:
+        - node.role == worker
+  ...
+```
+
+Сделана настройка масштабируемости сервисов
+```
+  ...
+  deploy:
+    mode: replicated
+    replicas: 3
+  ...
+```
+
+Сервис `node-exporter` запущен в режиме `global mode`
+```
+  ...
+  deploy:
+    mode: global
+  ...
+```
+
+Определены настройки `update_config`, `resources`, `restart_policy` для сервисов (на примере настройки одного из сервисов):
+```
+  ...
+  update_config:
+    delay: 5s
+    parallelism: 1
+    failure_action: rollback
+  resources:
+    limits:
+      cpus: '0.50'
+      memory: 150M
+  restart_policy:
+    condition: on-failure
+    max_attempts: 3
+    delay: 3s
+  ...
+```
