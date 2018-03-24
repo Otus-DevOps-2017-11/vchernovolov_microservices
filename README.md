@@ -588,3 +588,43 @@ docker node update --label-add reliability=high master-1
     delay: 3s
   ...
 ```
+
+## ДЗ-28 "Введение в Kubernetes"
+
+### Знакомство, работа с компонентами `Kubernetes`
+Развернуты компоненты `Kubernetes` по туториалу `kubernetes-the-hard-way` (https://github.com/kelseyhightower/kubernetes-the-hard-way)<br>
+Результаты работы по туториалу сохранены в папке `kubernetes/kubernetes_the_hard_way` репозитория
+
+### Проверен деплой компонентов приложения
+```
+kubernetes_the_hard_way# kubectl apply -f ../mongo-deployment.yml
+deployment "mongo-deployment" created
+
+kubernetes_the_hard_way# kubectl get pods -l app=mongo
+NAME                              READY     STATUS    RESTARTS   AGE
+mongo-deployment-74cccfb8-b5tr4   1/1       Running   0          1m
+```
+```
+kubernetes_the_hard_way# kubectl apply -f ../post-deployment.yml
+deployment "post-deployment" created
+
+kubernetes_the_hard_way# kubectl get pods -l app=post
+NAME                               READY     STATUS    RESTARTS   AGE
+post-deployment-774578cf8c-hd47r   1/1       Running   0          27s
+```
+```
+kubernetes_the_hard_way# kubectl apply -f ../comment-deployment.yml
+deployment "comment-deployment" created
+
+kubernetes_the_hard_way# kubectl get pods -l app=comment
+NAME                                  READY     STATUS    RESTARTS   AGE
+comment-deployment-7d844f7585-6v8xb   1/1       Running   0          40s
+```
+```
+kubernetes_the_hard_way# kubectl apply -f ../ui-deployment.yml
+deployment "ui-deployment" created
+
+kubernetes_the_hard_way# kubectl get pods -l app=ui
+NAME                            READY     STATUS    RESTARTS   AGE
+ui-deployment-7597d9b6c-z6nv6   1/1       Running   0          34s
+```
