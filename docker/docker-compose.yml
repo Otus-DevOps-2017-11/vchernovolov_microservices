@@ -5,6 +5,10 @@ services:
     image: mongo:3.2
     volumes:
       - post_db:/data/db
+    deploy:
+      placement:
+        constraints:
+          - node.labels.reliability == high
     networks:
       back_net:
         aliases:
@@ -13,11 +17,29 @@ services:
 
   ui:
     image: ${USER_NAME}/ui:${UI_VERSION}
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: localhost:24224
-        tag: service.ui
+#    logging:
+#      driver: "fluentd"
+#      options:
+#        fluentd-address: localhost:24224
+#        tag: service.ui
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == worker
+      update_config:
+        delay: 5s
+        parallelism: 1
+        failure_action: rollback
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 150M
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        delay: 3s
     ports:
       - ${UI_PORT}:${UI_PORT}/tcp
     networks:
@@ -25,11 +47,29 @@ services:
 
   post:
     image: ${USER_NAME}/post:${POST_VERSION}
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: localhost:24224
-        tag: service.post
+#    logging:
+#      driver: "fluentd"
+#      options:
+#        fluentd-address: localhost:24224
+#        tag: service.post
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == worker
+      update_config:
+        delay: 10s
+        parallelism: 2
+        failure_action: rollback
+      resources:
+        limits:
+          cpus: '0.30'
+          memory: 300M
+      restart_policy:
+        condition: on-failure
+        max_attempts: 11
+        delay: 1s
     networks:
       back_net:
       front_net:
@@ -38,6 +78,24 @@ services:
 
   comment:
     image: ${USER_NAME}/comment:${COMMENT_VERSION}
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == worker
+      update_config:
+        delay: 10s
+        parallelism: 2
+        failure_action: rollback
+      resources:
+        limits:
+          cpus: '0.30'
+          memory: 300M
+      restart_policy:
+        condition: on-failure
+        max_attempts: 10
+        delay: 1s
     networks:
       front_net:
         aliases:
