@@ -79,6 +79,7 @@ def find_posts():
 
 @app.route("/posts")
 def posts():
+    '''
     with zipkin_span(
         service_name='post',
         zipkin_attrs=ZipkinAttrs(
@@ -93,7 +94,8 @@ def posts():
         port=5000,
         sample_rate=100,
     ):
-        posts = find_posts()
+    '''
+    posts = find_posts()
     return posts
 
 
