@@ -736,3 +736,36 @@ kubectl proxy
 http://localhost:8001/ui
 ```
 После добавления роли - все ок
+
+## ДЗ-30 "Kubernetes. Networks, Storages"
+
+### ui сервис as LoadBalancer
+`ui` сервис был сконфигурирован с типом LoadBalancer, открытым на 80 порту<br>
+При переходе на
+```
+http://<external-ip>:port
+```
+Получили работающий web-интерфес приложения (ui)
+
+### Приложение настроено на использование Ingress
+Был создан сервис `ingress`<br>
+Для `ingress` был создан самоподписанный сертификат и загружен в кластер
+```
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=<ip>"
+kubectl create secret tls ui-ingress --key tls.key --cert tls.crt -n dev
+```
+И далее `ingress` был настроен на прием только `https` трафика
+
+### NetworkPolicy
+В GKE была включена настройка NetworkPolicy
+```
+gcloud container clusters update <cluster-name> \ --zone=europe-west1-b --enable-network-policy
+```
+Сделана настройка сервиса `mongo-network-policy` - для ограничения трафика, поступающего на `mongodb` отовсюду, кроме сервисов `post`, `comment`
+
+### Настроено хранилище для базы
+Создан диск `GCE`
+```
+gcloud compute disks create --size=25GB --zone=europe-west1-b reddit-mongo-disk
+```
+Далее создано описание `StorageClass` для SSD дисков (`pd-ssd`), затем - описание `PersistentVolumeClaim`, ссылающегося на `StorageClass`
