@@ -769,3 +769,37 @@ gcloud container clusters update <cluster-name> \ --zone=europe-west1-b --enable
 gcloud compute disks create --size=25GB --zone=europe-west1-b reddit-mongo-disk
 ```
 Далее создано описание `StorageClass` для SSD дисков (`pd-ssd`), затем - описание `PersistentVolumeClaim`, ссылающегося на `StorageClass`
+
+## ДЗ-31 "CI/CD в Kubernetes"
+
+### Установлен `helm`, запущен `tiller`
+Установлен helm версии v2.8.2<br>
+Новее версия (v2.9.0-rc3) не взлетела, с ней отказался работать gitlab-omnibus v0.1.37, откатил версию клиента, сделал `downgrade` сервера до v2.8.2
+
+Запущен `tiller`
+```
+kubectl apply -f tiller.yml
+helm init --service-account tiller
+```
+
+### `Charts`
+Описаны `Charts` для компонентов приложения, а также отдельный `Chart` для деплоя приложения
+
+Мощностей `g1-small` не хватало при деплое приложения, а именно: сервиса `mongodb`<br>
+Добавил 3-ю ноду в кластер (затем ноду удалил, когда был добавлен пул из 1 ноды `n1-standard-2`)
+
+### Установлен `Gitlab` на `kubernetes` кластере
+
+За основу `Chart` для `Gitlab` взят
+```
+gitlab-omnibus v0.1.37
+```
+
+После запуска `Gitlab` создана группа, проекты (`ui`, `commit`, `post`, `reddit-deploy`)<br>
+
+### Настроен `CD/CI`
+Настроен `gitlab-ci` для компонентов приложения, приложения<br>
+В файлах `.gitlab-ci.yml` версия `helm` измена на v.2.8.2 (на соответсвующую версии клиента)<br>
+
+`push` в удаленные ветки (прокты) запускали `CD/CI pipelines`<br>
+Статус запуска `pipelines` - `passed` (ok)
