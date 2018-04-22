@@ -628,3 +628,111 @@ kubernetes_the_hard_way# kubectl get pods -l app=ui
 NAME                            READY     STATUS    RESTARTS   AGE
 ui-deployment-7597d9b6c-z6nv6   1/1       Running   0          34s
 ```
+
+## ДЗ-29 "Kubernetes. Запуск кластера и приложения. Модель безопасности"
+
+### Развернуто локальное окружение для работы с `Kubernetes`
+Установлен `kubectl`
+```
+curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+
+chmod +x ./kubectl
+
+sudo mv ./kubectl /usr/local/bin/kubectl
+```
+Установлен `minikube`
+```
+curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.24.1/minikube-linux-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin/
+```
+Запущен `minikube`
+```
+minikube start
+```
+
+### Приложение `Reddit` запущено в `Kubernetes`
+Для компонентов приложения `Reddit` определены файлы конфигурации деплоймента (`kind: Deployment`), сервисов (`kind: Service`)<br>
+Определено пространство имен (`kind: Namespace`) - `dev`
+
+Применен namespace dev
+```
+kubectl apply -f ./dev-namespace.yml
+```
+Запущено приложение
+```
+kubectl apply -f .
+```
+
+Проверка работы приложения<br>
+Проброс портов
+```
+kubectl port-forward <ui-container> 9292:9292
+```
+затем задано в конфигурации `ui-service.yml` (для доступа извне)
+```
+...
+spec:
+  type: NodePort
+  ports:  
+  - nodePort: 32092
+    port: 9292
+    protocol: TCP
+    targetPort: 9292
+  selector:
+...
+```
+Запуск ui приложения
+```
+minikube service ui -n dev
+```
+
+### Включен `Minikube` addon `dashboard`
+```
+minikube addons enable dashboard
+```
+Запуск ui `dashboard`
+```
+minikube service kubernetes-dashboard -n kube-system
+```
+
+### Развернут `Kubernetes` в `GKE`
+Создан кластер `kubernetes` в `GKE`<br>
+Подключение к `GKE` для запуска приложения
+```
+gcloud container clusters get-credentials cluster-1 --zone europe-west1-b --project <project-id>
+```
+Запуск приложения
+```
+kubectl apply -f ./dev-namespace.yml
+
+kubectl apply -f .
+```
+Создано правило брандмауэра для доступа к приложению извне на все экземпляры сети, диапазон источников 0.0.0.0/0, протоколы,порты - tcp:
+30000-32767<br>
+Скриншот веб-интерфейса приложения приложен к PR
+
+### В `GKE` запущен `dashboard` для кластера
+Не потребовалось (уже был)
+```
+kubectl create sa kubernetes-dashboard -n kube-system
+```
+Также были записи в конфигурации пода `kubernetes-dashboard`
+```
+...
+      serviceAccount: kubernetes-dashboard
+      serviceAccountName: kubernetes-dashboard
+...
+```
+Назначена роль `cluster-admin` сервис-аккаунту dashboard'а
+```
+kubectl create clusterrolebinding kubernetes-dashboard --clusterrole=cluster-admin --serviceaccount=kube-system:kubernetes-dashboard
+```
+
+Проверка
+```
+kubectl proxy
+```
+Переход к `dashboard`
+```
+http://localhost:8001/ui
+```
+После добавления роли - все ок
