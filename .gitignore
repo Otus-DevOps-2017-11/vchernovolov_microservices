@@ -8,3 +8,5 @@ build_info.txt
 
 kubernetes/reddit/*.key
 kubernetes/reddit/*.crt
+
+**/reddit/charts/*
