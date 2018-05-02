@@ -5,3 +5,8 @@ build_info.txt
 
 # .env
 .env
+
+kubernetes/reddit/*.key
+kubernetes/reddit/*.crt
+
+**/reddit/charts/*
