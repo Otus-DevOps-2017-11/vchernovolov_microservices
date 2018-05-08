@@ -803,3 +803,77 @@ gitlab-omnibus v0.1.37
 
 `push` в удаленные ветки (прокты) запускали `CD/CI pipelines`<br>
 Статус запуска `pipelines` - `passed` (ok)
+
+
+## ДЗ-32 "Kubernetes. Мониторинг и логирование"
+
+Установлен  `ingress`-контроллер `nginx`
+```
+helm install stable/nginx-ingress --name nginx
+```
+
+### Развернут, установлен `Prometheus`
+```
+git clone https://github.com/kubernetes/charts.git kube-charts
+cd kube-charts ; git fetch origin pull/2767/head:prom_2.0
+git checkout prom_2.0 ; cd ..
+cp -r kube-charts/stable/prometheus /../../kubernetes/Charts
+rm -r kube-charts
+cd Charts/prometheus
+helm upgrade prom . -f custom_values.yml --install
+```
+
+Включены `kube-state-metrics`, `node-exporte`, передеплоен `Prometheus`
+```
+helm upgrade prom . -f custom_values.yml --install
+```
+
+Добавлены настройки (`endpoint`) для поиска приложений, запущенных в `k8s` (ServiceDiscovery)<br>
+Поиск по метке `reddit=app`<br>
+Затем описаны отдельные `endpoint`'s для каждого компонента приложения (`ui`, `post`, `comment`)
+
+### Развернут сервис `Grafana`, настроены `dashboard's`
+```
+helm upgrade --install grafana stable/grafana \
+  --set "server.adminPassword=admin" \
+  --set "server.service.type=NodePort" \
+  --set "server.ingress.enabled=true" \
+  --set "server.ingress.hosts={reddit-grafana}"
+```
+
+Под пользователем:паролем admin:admin зайти не получилось<br>
+Пароль был сброшен
+```
+kubectl get secret --namespace default grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+```
+Получили secret, например=xyzpassw
+```
+curl -X PUT -H "Content-Type: application/json" -d '{
+  "oldPassword": "xyzpassw",
+  "newPassword": "admin",
+  "confirmNew": "admin"
+}' http://<grafana-host>:3000/api/user/password --user admin:xyzpassw
+```
+Импортирован `dashboard` *Kubernetes cluster monitoring (via Prometheus)*<br>
+Добавлена переменная *namespace*, внесены изменения в ранее созданные `dashboard` (ДЗ-23) - использование переменной *namespace*,
+для фильтрации информации на `dashboard` по *namespace*<br>
+Измененные `dashboard` сохранены в репозитории<br>
+Импортирован `dashboard` *Kubernetes Deployment metrics*
+
+### Логирование, настройка стека `EFK`
+
+Самой мощной ноде кластера присвоена метка `elastichost`
+```
+kubectl label node <gke-cluster-node> elastichost=true
+```
+Запущен стек `EFK`
+```
+kubectl apply -f ./efk
+```
+```
+helm upgrade --install kibana stable/kibana \
+--set "ingress.enabled=true" \
+--set "ingress.hosts={reddit-kibana}" \
+--set "env.ELASTICSEARCH_URL=http://elasticsearch-logging:9200" \
+--version 0.1.1
+```
